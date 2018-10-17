@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 // database values
-const dbUrI = process.env.MONGODB_URI || 'mongodb://localhost:27017/TodoApp';
+const dbUrI = process.env.MONGODB_URI;
 
 
 // configure Mongoose
