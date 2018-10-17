@@ -17,6 +17,12 @@ app.use(bodyParser.json());
 
 
 // app routes
+
+// testing heroku
+app.get('/', (req, res) => {
+    res.send('Welcome from heroku :)');
+});
+
 app.post('/todos', (req, res) => {
     
     let todo = new Todo({'text': req.body.text});
