@@ -6,7 +6,9 @@ const request       = require('supertest'),
 // own files
 const {app}         = require('../app'),
       Todo          = require('../models/Todo'),
-      TodosSeeder   = require('../database/seeders/TodosSeeder');
+      TodosSeeder   = require('../database/seeders/TodosSeeder'),
+      User          = require('../models/User'),
+      UsersSeeder   = require('../database/seeders/UsersSeeder');
 
 // static properties for testing
 let id = ObjectId().toString(); // new object id
@@ -14,15 +16,24 @@ const numberOfTodos = 4; // number of todo's documents before any test
 
 // will run before any test case
 beforeEach((done) => {
-    Todo
-        .deleteMany()
+    User.deleteMany()
+        .then(() => {
+            UsersSeeder.seed(4);
+            UsersSeeder.seedWithOutToken(2);
+            done();
+        })
+        .catch(e => done(e));
+
+});
+beforeEach((done) => {
+    Todo.deleteMany()
         .then(() => {
             TodosSeeder.seed(3);
             TodosSeeder.seedWithId(id);
             done();
         })
-        .catch((e) => done(e));
-})
+        .catch(e => done(e));
+});
 
 describe('Todos', () => {
     

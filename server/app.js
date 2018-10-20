@@ -5,12 +5,13 @@ const express     = require('express'),
       _           = require('lodash');
 
 // configure the project
-require('./config/config');
+const env = require('./config/config');
 
 // own libraries
-const mongoose    = require('./database/mongoose'),
-      User        = require('./models/User'),
-      Todo        = require('./models/Todo');
+const mongoose      = require('./database/mongoose'),
+      User          = require('./models/User'),
+      Todo          = require('./models/Todo'),
+      authenticate  = require('./middlewares/authenticate');
 
 // creating the app
 const app = express();
@@ -153,6 +154,45 @@ app.patch('/todos/:id', (req, res) => {
                 .send();
         });
 
+});
+
+
+// POST /users
+app.post('/users', (req, res) => {
+
+    // get properties
+    let body = _.pick(req.body, ['email', 'password']);
+
+    // create user
+    let user = new User(body);
+
+    // save user
+    user.save()
+        .then(() => {
+            // generate user token
+            return user.generateAuthToken();
+        })
+        .then(token => {
+            res.header('x-auth', token)
+                .status(200)
+                .send({
+                    'message': 'User created successfully',
+                    user
+                });
+        })
+        .catch(e => {
+            res.status(400)
+                .send({
+                    'message': 'Failed to create the user',
+                    error: e
+                });
+        })
+})
+
+// GET /users
+app.get('/users', authenticate, (req, res) => {
+    res.status(200)
+        .send({user: req.user});
 });
 
 
