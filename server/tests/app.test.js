@@ -64,8 +64,9 @@ describe('Todos', () => {
                 .send({text})
                 .expect(200)
                 .expect((res) => {
+                    expect(typeof res.body.text).toBe('string')
                     expect(res.body.text)
-                        .toBeA('string')
+                        // .toBeAn('string')
                         .toBe(text);
                 })
                 .end((err, res) => {
@@ -135,7 +136,7 @@ describe('Todos', () => {
                 .set('x-auth', token)
                 .expect(200)
                 .expect((res) => {
-                    expect(res.body.todo).toInclude({_id: id});
+                    expect(res.body.todo).toMatchObject({_id: id});
                 })
                 .end(done);
         });
@@ -181,7 +182,7 @@ describe('Users', () => {
                 .set('x-auth', token)
                 .expect(200)
                 .expect((res) => {
-                    expect(res.body.user).toExist();
+                    expect(res.body.user).toBeTruthy();
                     expect(res.body.user.email).toBe(email);
                 })
                 .end(done);
@@ -214,8 +215,8 @@ describe('Users', () => {
                 .send({email, password})
                 .expect(200)
                 .expect((res) => {
-                    expect(res.headers['x-auth']).toExist();
-                    expect(res.body.user).toInclude({
+                    expect(res.headers['x-auth']).toBeTruthy();
+                    expect(res.body.user).toMatchObject({
                         email
                     });
                 })
@@ -227,8 +228,8 @@ describe('Users', () => {
 
                     User.findOne({email})
                         .then(user => {
-                            expect(user).toExist();
-                            expect(user.password).toNotBe(password); // due to hashing
+                            expect(user).toBeTruthy();
+                            expect(user.password).not.toBe(password); // due to hashing
                             done();
                         })
                         .catch(err => done(err));
