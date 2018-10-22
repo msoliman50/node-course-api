@@ -46,7 +46,7 @@ userSchema.methods.generateAuthToken = function() {
     let user = this;
     // generate token
     let access = 'auth'; // token type
-    let token = jwt.sign({_id: user._id, access}, '123ABC').toString();
+    let token = jwt.sign({_id: user._id, access}, process.env.JWT_SECRET).toString();
 
     // add token to the tokens array
     user.tokens.push({access, token});
@@ -70,6 +70,27 @@ userSchema.methods.toJSON = function() {
     return _.pick(userObject, ['_id', 'email']);
 };
 
+// delete user token
+userSchema.methods.deleteToken = function(token) {
+
+    let user = this;
+
+    // normal way delete user token
+    // user.tokens = user.tokens.filter(value => value.token != token);
+    // return user.save();
+    
+
+    // delete user token using mongoose update operators
+    return user.updateOne({
+        $pull: {
+            tokens: {
+                token: token
+            }
+        }
+    });
+
+}; 
+
 
 /*      define custom Model methods      */
 userSchema.statics.findByToken = function(token) {
@@ -77,7 +98,7 @@ userSchema.statics.findByToken = function(token) {
     let decoded;
 
     try {
-        decoded = jwt.verify(token, '123ABC');
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
         return Promise.reject('Token is not valid');
     }
@@ -88,6 +109,33 @@ userSchema.statics.findByToken = function(token) {
         'tokens.token': token
     });
     
+};
+
+userSchema.statics.findByCredentials = function(email, password) {
+
+        let User = this;
+
+        // get the user using email
+        return User.findOne({email})
+                    .then(user => {
+
+                        if (!user) {
+                            return Promise.reject('Wrong Credentials');
+                        }
+
+                        return new Promise((resolve, reject) => {
+                            
+                            // compare the passwords
+                            bcrypt.compare(password, user.password, (err, result) => {
+
+                                if (err || !result) {
+                                    reject('Wrong Credentials');
+                                }
+
+                                resolve(user);
+                            });
+                        })
+                    });
 };
 
 

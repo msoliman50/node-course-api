@@ -16,6 +16,11 @@ let todoSchema = Schema({
         type: Number,
         min: 0,
         default: null
+    },
+    creator: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
     }
 });
 

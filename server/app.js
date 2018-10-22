@@ -2,7 +2,8 @@
 const express     = require('express'),
       bodyParser  = require('body-parser'),
       {ObjectId}  = require('mongodb'),
-      _           = require('lodash');
+      _           = require('lodash'),
+      bcrypt      = require('bcryptjs');
 
 // configure the project
 const env = require('./config/config');
@@ -23,9 +24,12 @@ app.use(bodyParser.json());
 /*      app routes      */
 
 // POST /todos
-app.post('/todos', (req, res) => {
+app.post('/todos', authenticate, (req, res) => {
     
-    let todo = new Todo({'text': req.body.text});
+    let todo = new Todo({
+        'text': req.body.text,
+        creator: req.user._id
+    });
 
     todo.save().then((doc) => {
         res.send(doc);
@@ -35,8 +39,10 @@ app.post('/todos', (req, res) => {
 });
 
 // GET /todos
-app.get('/todos', (req, res) => {
-    Todo.find().then((todos) => {
+app.get('/todos', authenticate, (req, res) => {
+    Todo.find({creator: req.user._id})
+    .populate('creator')
+    .then((todos) => {
         res.send({todos})
     }, (err) => {
         res.status(500).send(err);
@@ -44,7 +50,7 @@ app.get('/todos', (req, res) => {
 });
 
 // GET /todos/:id
-app.get('/todos/:id', (req, res) => {
+app.get('/todos/:id', authenticate, (req, res) => {
     
     // get id
     let id = req.params.id;
@@ -55,7 +61,11 @@ app.get('/todos/:id', (req, res) => {
             .send({message: 'Invalid id'});
     }
 
-    Todo.findById(id)
+    Todo.findOne({
+        _id: id,
+        creator: req.user._id
+    })
+        .populate('creator')
         .then((todo) => {
 
             // check if no todo exist
@@ -78,7 +88,7 @@ app.get('/todos/:id', (req, res) => {
 });
 
 // DELETE /todos/:id
-app.delete('/todos/:id', (req, res) => {
+app.delete('/todos/:id', authenticate, (req, res) => {
 
     // get id
     let id = req.params.id;
@@ -90,7 +100,11 @@ app.delete('/todos/:id', (req, res) => {
     }
 
     // delete the record
-    Todo.findByIdAndDelete(id)
+    Todo.findOneAndDelete({
+        _id: id,
+        creator: req.user._id
+    })
+        .populate('creator')
         .then((todo) => {
 
             // check if no todo found
@@ -113,7 +127,7 @@ app.delete('/todos/:id', (req, res) => {
 });
 
 // PATCH /todos/:id
-app.patch('/todos/:id', (req, res) => {
+app.patch('/todos/:id', authenticate, (req, res) => {
 
     // get id
     let id = req.params.id;
@@ -133,7 +147,11 @@ app.patch('/todos/:id', (req, res) => {
         body.isCompleted = false;
     }
 
-    Todo.findByIdAndUpdate(id, body, {new: true})
+    Todo.findOneAndUpdate({
+        _id: id,
+        creator: req.user._id
+    }, body, {new: true})
+        .populate('creator')
         .then((todo) => {
             
             // check if the todo exist
@@ -189,10 +207,56 @@ app.post('/users', (req, res) => {
         })
 })
 
-// GET /users
-app.get('/users', authenticate, (req, res) => {
+// GET /users/me
+app.get('/users/me', authenticate, (req, res) => {
     res.status(200)
         .send({user: req.user});
+});
+
+// POST /users/login
+app.post('/users/login', (req, res) => {
+
+    // get user credentials
+    let body = _.pick(req.body, ['email', 'password']);
+
+    // get the user using credentials
+    User.findByCredentials(body.email, body.password)
+        .then(user => {
+
+            return user.generateAuthToken()
+                        .then(token => {
+                            res.header('x-auth', token)
+                                .status(200)
+                                .send({
+                                    'message': 'Logged in successfully',
+                                    user
+                                });
+                        });
+        })
+        .catch(err => {
+            res.status(400)
+                .send(
+                    {
+                        message: 'Invalid request',
+                        err
+                    }
+                );
+        })
+
+});
+
+// DELETE /users/me/token
+app.delete('/users/me/token', authenticate, (req, res) => {
+
+    req.user.deleteToken(req.token)
+            .then(() => {
+                res.status(200)
+                    .send({message: 'user logged out successfully'});
+            })
+            .catch((err) => {
+                res.status(400)
+                    .send();
+            })
 });
 
 
