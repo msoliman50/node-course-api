@@ -88,7 +88,7 @@ app.get('/todos/:id', authenticate, (req, res) => {
 });
 
 // DELETE /todos/:id
-app.delete('/todos/:id', authenticate, (req, res) => {
+app.delete('/todos/:id', authenticate, async (req, res) => {
 
     // get id
     let id = req.params.id;
@@ -100,30 +100,23 @@ app.delete('/todos/:id', authenticate, (req, res) => {
     }
 
     // delete the record
-    Todo.findOneAndDelete({
-        _id: id,
-        creator: req.user._id
-    })
-        .populate('creator')
-        .then((todo) => {
 
-            // check if no todo found
-            if (!todo) {
-                res.status(404)
-                    .send({message: 'No todo is found'});
-            }
-            
-            // 200 Ok
-            res.status(200)
-                .send({
-                    message: 'todo has been deleted successfully',
-                    todo
-                });
-        })
-        .catch(err => {
-            res.status(400)
-                .send();
-        });
+    try {
+        const todo = await Todo.findOneAndDelete({_id: id, creator: req.user._id})
+                                .populate('creator');
+
+        // check if no todo found
+        if (!todo) {
+            res.status(404).send({message: 'No todo is found'});
+        }
+
+        // 200 Ok
+        res.status(200).send({message: 'todo has been deleted successfully', todo});
+        
+    } catch (e) {
+        res.status(400).send();
+    }
+
 });
 
 // PATCH /todos/:id
@@ -176,7 +169,7 @@ app.patch('/todos/:id', authenticate, (req, res) => {
 
 
 // POST /users
-app.post('/users', (req, res) => {
+app.post('/users', async (req, res) => {
 
     // get properties
     let body = _.pick(req.body, ['email', 'password']);
@@ -185,26 +178,16 @@ app.post('/users', (req, res) => {
     let user = new User(body);
 
     // save user
-    user.save()
-        .then(() => {
-            // generate user token
-            return user.generateAuthToken();
-        })
-        .then(token => {
-            res.header('x-auth', token)
-                .status(200)
-                .send({
-                    'message': 'User created successfully',
-                    user
-                });
-        })
-        .catch(e => {
-            res.status(400)
-                .send({
-                    'message': 'Failed to create the user',
-                    error: e
-                });
-        })
+    try {
+        await user.save();
+        const token = await user.generateAuthToken(); // generate user token
+        res.header('x-auth', token).status(200)
+            .send({'message': 'User created successfully', user});
+
+    } catch (e) {
+        res.status(400).send({'message': 'Failed to create the user', error: e});
+    }
+    
 })
 
 // GET /users/me
@@ -214,49 +197,32 @@ app.get('/users/me', authenticate, (req, res) => {
 });
 
 // POST /users/login
-app.post('/users/login', (req, res) => {
+app.post('/users/login', async (req, res) => {
 
     // get user credentials
     let body = _.pick(req.body, ['email', 'password']);
 
     // get the user using credentials
-    User.findByCredentials(body.email, body.password)
-        .then(user => {
-
-            return user.generateAuthToken()
-                        .then(token => {
-                            res.header('x-auth', token)
-                                .status(200)
-                                .send({
-                                    'message': 'Logged in successfully',
-                                    user
-                                });
-                        });
-        })
-        .catch(err => {
-            res.status(400)
-                .send(
-                    {
-                        message: 'Invalid request',
-                        err
-                    }
-                );
-        })
+    try {
+        const user = await User.findByCredentials(body.email, body.password);
+        const token = await user.generateAuthToken();
+        res.header('x-auth', token).status(200)
+            .send({'message': 'Logged in successfully', user});
+    } catch (e) {
+        res.status(400).send({message: 'Invalid request', err});
+    }
 
 });
 
 // DELETE /users/me/token
-app.delete('/users/me/token', authenticate, (req, res) => {
+app.delete('/users/me/token', authenticate, async (req, res) => {
 
-    req.user.deleteToken(req.token)
-            .then(() => {
-                res.status(200)
-                    .send({message: 'user logged out successfully'});
-            })
-            .catch((err) => {
-                res.status(400)
-                    .send();
-            })
+    try {
+        await req.user.deleteToken(req.token);
+        res.status(200).send({message: 'user logged out successfully'});
+    } catch (e) {
+        res.status(400).send();
+    }
 });
 
 
